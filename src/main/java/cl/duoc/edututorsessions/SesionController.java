@@ -15,9 +15,11 @@ import jakarta.validation.constraints.NotNull;
 public class SesionController {
 
 	private final SesionRepository repository;
+	private final SessionEventPublisher eventPublisher;
 
-	public SesionController(SesionRepository repository) {
+	public SesionController(SesionRepository repository, SessionEventPublisher eventPublisher) {
 		this.repository = repository;
+		this.eventPublisher = eventPublisher;
 	}
 
 	// GET /api/sessions?status=...&from=...&to=...
@@ -39,18 +41,23 @@ public class SesionController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public Sesion crear(@Valid @RequestBody CrearSesionRequest req) {
-		return repository.save(new Sesion(req.estudianteId(), req.servicioId()));
+		Sesion sesion = repository.save(new Sesion(req.estudianteId(), req.servicioId()));
+		eventPublisher.publicarCreada(sesion);
+		return sesion;
 	}
 
 	// PUT /api/sessions/{id}/status
 	@PutMapping("/{id}/status")
 	public Sesion cambiarEstado(@PathVariable Long id, @Valid @RequestBody CambiarEstadoRequest req) {
 		Sesion sesion = buscarOFallar(id);
+		EstadoSesion estadoAnterior = sesion.getEstado();
 		if (req.status() == EstadoSesion.ASIGNADA && req.tutorId() != null) {
 			sesion.asignarTutor(req.tutorId());
 		}
 		sesion.transitionTo(req.status());
-		return repository.save(sesion);
+		sesion = repository.save(sesion);
+		eventPublisher.publicarCambioEstado(sesion, estadoAnterior);
+		return sesion;
 	}
 
 	private Sesion buscarOFallar(Long id) {
