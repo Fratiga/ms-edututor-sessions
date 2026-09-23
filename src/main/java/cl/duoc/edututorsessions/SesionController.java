@@ -24,23 +24,23 @@ public class SesionController {
 
 	// GET /api/sessions?status=...&from=...&to=...
 	@GetMapping
-	public List<Sesion> listar(
+	public List<SesionResponse> listar(
 			@RequestParam(required = false) EstadoSesion status,
 			@RequestParam(required = false) Instant from,
 			@RequestParam(required = false) Instant to) {
-		return repository.buscar(status, from, to);
+		return repository.buscar(status, from, to).stream().map(SesionResponse::from).toList();
 	}
 
 	// GET /api/sessions/{id}
 	@GetMapping("/{id}")
-	public Sesion obtener(@PathVariable Long id) {
-		return buscarOFallar(id);
+	public SesionResponse obtener(@PathVariable Long id) {
+		return SesionResponse.from(buscarOFallar(id));
 	}
 
 	// POST /api/sessions (crear sesión)
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public Sesion crear(@Valid @RequestBody CrearSesionRequest req) {
+	public SesionResponse crear(@Valid @RequestBody CrearSesionRequest req) {
 		Sesion sesion = new Sesion(req.estudianteId(), req.servicioId());
 		sesion.setFechaHora(req.fechaHora());
 		sesion.setObservaciones(req.observaciones());
@@ -51,12 +51,12 @@ public class SesionController {
 		}
 		sesion = repository.save(sesion);
 		eventPublisher.publicarCreada(sesion);
-		return sesion;
+		return SesionResponse.from(sesion);
 	}
 
 	// PUT /api/sessions/{id}/status
 	@PutMapping("/{id}/status")
-	public Sesion cambiarEstado(@PathVariable Long id, @Valid @RequestBody CambiarEstadoRequest req) {
+	public SesionResponse cambiarEstado(@PathVariable Long id, @Valid @RequestBody CambiarEstadoRequest req) {
 		Sesion sesion = buscarOFallar(id);
 		EstadoSesion estadoAnterior = sesion.getEstado();
 		if (req.status() == EstadoSesion.ASIGNADA && req.tutorId() != null) {
@@ -65,7 +65,7 @@ public class SesionController {
 		sesion.transitionTo(req.status());
 		sesion = repository.save(sesion);
 		eventPublisher.publicarCambioEstado(sesion, estadoAnterior);
-		return sesion;
+		return SesionResponse.from(sesion);
 	}
 
 	private Sesion buscarOFallar(Long id) {
@@ -78,5 +78,18 @@ public class SesionController {
 	}
 
 	public record CambiarEstadoRequest(@NotNull EstadoSesion status, String tutorId) {
+	}
+
+	// DTO externo: id/servicioId como String para el contrato del frontend
+	// (tutorNombre/servicioNombre no viajan aca a proposito — este servicio no
+	// conoce el catalogo ni un directorio de tutores; el frontend los resuelve
+	// contra los datos que ya tiene de /api/catalog/services).
+	public record SesionResponse(String id, String servicioId, String estudianteId, String tutorId,
+			EstadoSesion estado, Instant fechaHora, Instant fechaSolicitud, String observaciones) {
+		static SesionResponse from(Sesion s) {
+			return new SesionResponse(String.valueOf(s.getId()), String.valueOf(s.getServicioId()),
+				s.getEstudianteId(), s.getTutorId(), s.getEstado(), s.getFechaHora(), s.getFechaSolicitud(),
+				s.getObservaciones());
+		}
 	}
 }
