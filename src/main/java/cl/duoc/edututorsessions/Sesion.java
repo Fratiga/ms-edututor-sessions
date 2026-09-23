@@ -43,6 +43,12 @@ public class Sesion {
 
 	private Instant fechaSolicitud;
 
+	// Complementarios: el frontend permite elegir un horario preferido y dejar
+	// notas al solicitar, sin alterar la máquina de estados original.
+	private Instant fechaHora;
+
+	private String observaciones;
+
 	protected Sesion() {
 	}
 
@@ -92,5 +98,21 @@ public class Sesion {
 
 	public Instant getFechaSolicitud() {
 		return fechaSolicitud;
+	}
+
+	public Instant getFechaHora() {
+		return fechaHora;
+	}
+
+	public void setFechaHora(Instant fechaHora) {
+		this.fechaHora = fechaHora;
+	}
+
+	public String getObservaciones() {
+		return observaciones;
+	}
+
+	public void setObservaciones(String observaciones) {
+		this.observaciones = observaciones;
 	}
 }

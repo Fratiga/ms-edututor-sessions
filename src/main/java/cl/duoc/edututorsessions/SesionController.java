@@ -41,7 +41,15 @@ public class SesionController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public Sesion crear(@Valid @RequestBody CrearSesionRequest req) {
-		Sesion sesion = repository.save(new Sesion(req.estudianteId(), req.servicioId()));
+		Sesion sesion = new Sesion(req.estudianteId(), req.servicioId());
+		sesion.setFechaHora(req.fechaHora());
+		sesion.setObservaciones(req.observaciones());
+		// El tutor preferido queda registrado, pero la sesión sigue naciendo
+		// SOLICITADA — la máquina de estados no cambia, solo queda "pre-asignado".
+		if (req.tutorId() != null) {
+			sesion.asignarTutor(req.tutorId());
+		}
+		sesion = repository.save(sesion);
 		eventPublisher.publicarCreada(sesion);
 		return sesion;
 	}
@@ -65,7 +73,8 @@ public class SesionController {
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sesión no encontrada: " + id));
 	}
 
-	public record CrearSesionRequest(@NotNull String estudianteId, @NotNull Long servicioId) {
+	public record CrearSesionRequest(@NotNull String estudianteId, @NotNull Long servicioId, String tutorId,
+			Instant fechaHora, String observaciones) {
 	}
 
 	public record CambiarEstadoRequest(@NotNull EstadoSesion status, String tutorId) {
