@@ -16,10 +16,13 @@ public class SesionController {
 
 	private final SesionRepository repository;
 	private final SessionEventPublisher eventPublisher;
+	private final SessionCommandPublisher commandPublisher;
 
-	public SesionController(SesionRepository repository, SessionEventPublisher eventPublisher) {
+	public SesionController(SesionRepository repository, SessionEventPublisher eventPublisher,
+			SessionCommandPublisher commandPublisher) {
 		this.repository = repository;
 		this.eventPublisher = eventPublisher;
+		this.commandPublisher = commandPublisher;
 	}
 
 	// GET /api/sessions?status=...&from=...&to=...
@@ -50,6 +53,7 @@ public class SesionController {
 			sesion.asignarTutor(req.tutorId());
 		}
 		sesion = repository.save(sesion);
+		commandPublisher.notificarCreada(sesion);
 		eventPublisher.publicarCreada(sesion);
 		return SesionResponse.from(sesion);
 	}
@@ -64,6 +68,7 @@ public class SesionController {
 		}
 		sesion.transitionTo(req.status());
 		sesion = repository.save(sesion);
+		commandPublisher.notificarCambioEstado(sesion);
 		eventPublisher.publicarCambioEstado(sesion, estadoAnterior);
 		return SesionResponse.from(sesion);
 	}
