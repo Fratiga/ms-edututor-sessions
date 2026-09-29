@@ -22,6 +22,7 @@ public class SessionSeeder implements CommandLineRunner {
 
 	private final SesionRepository repository;
 	private final SessionEventPublisher eventPublisher;
+	private boolean kafkaDisponible = true;
 
 	public SessionSeeder(SesionRepository repository, SessionEventPublisher eventPublisher) {
 		this.repository = repository;
@@ -57,11 +58,11 @@ public class SessionSeeder implements CommandLineRunner {
 	// datos consistentes si Kafka está disponible cuando esto corre.
 	private void crear(String estudianteId, Long servicioId, String tutorId, EstadoSesion destino,
 			Instant fechaHora, String observaciones) {
-		Sesion sesion = new Sesion(estudianteId, servicioId);
-		sesion.setFechaHora(fechaHora);
-		sesion.setObservaciones(observaciones);
-		sesion = repository.save(sesion);
-		eventPublisher.publicarCreada(sesion);
+		Sesion nueva = new Sesion(estudianteId, servicioId);
+		nueva.setFechaHora(fechaHora);
+		nueva.setObservaciones(observaciones);
+		final Sesion sesion = repository.save(nueva);
+		publicar(() -> eventPublisher.publicarCreada(sesion));
 
 		if (destino == EstadoSesion.SOLICITADA) {
 			return;
@@ -91,6 +92,22 @@ public class SessionSeeder implements CommandLineRunner {
 		EstadoSesion anterior = sesion.getEstado();
 		sesion.transitionTo(destino);
 		repository.save(sesion);
-		eventPublisher.publicarCambioEstado(sesion, anterior);
+		publicar(() -> eventPublisher.publicarCambioEstado(sesion, anterior));
+	}
+
+	// Kafka caído no debe impedir que el servicio arranque: send() bloquea hasta
+	// 60 s esperando metadata y luego lanza. Tras el primer fallo se deja de
+	// publicar en el resto de la siembra (los datos igual quedan en Oracle).
+	private void publicar(Runnable envio) {
+		if (!kafkaDisponible) {
+			return;
+		}
+		try {
+			envio.run();
+		}
+		catch (RuntimeException e) {
+			kafkaDisponible = false;
+			log.warn("Kafka no disponible durante la siembra; se omiten los eventos ({})", e.getMessage());
+		}
 	}
 }
