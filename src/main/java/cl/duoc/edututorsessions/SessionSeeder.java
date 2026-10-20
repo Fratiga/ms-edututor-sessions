@@ -35,12 +35,12 @@ public class SessionSeeder implements CommandLineRunner {
 			return;
 		}
 
-		crear("STU-204", 1L, "T-18", EstadoSesion.ASIGNADA, en(0, 10, 30), "Repasar regla de la cadena antes del parcial.");
-		crear("STU-118", 2L, "T-09", EstadoSesion.EN_CURSO, en(0, 13, 0), "Simulación de entrevista laboral.");
-		crear("STU-311", 3L, "T-23", EstadoSesion.REALIZADA, en(-1, 17, 0), "Excelente progreso en nomenclatura.");
-		crear("STU-087", 4L, "T-41", EstadoSesion.REALIZADA, en(-1, 9, 0), "Entregó avance del proyecto.");
-		crear("STU-191", 5L, "T-33", EstadoSesion.CONFIRMADA, en(1, 16, 0), "Primera revisión del ensayo.");
-		crear("STU-142", 1L, "T-18", EstadoSesion.CANCELADA, en(-2, 11, 0), "Reprogramar por examen universitario.");
+		crear("STU-204", 1L, "1", EstadoSesion.ASIGNADA, en(0, 10, 30), "Repasar regla de la cadena antes del parcial.");
+		crear("STU-118", 2L, "2", EstadoSesion.EN_CURSO, en(0, 13, 0), "Simulación de entrevista laboral.");
+		crear("STU-311", 3L, "3", EstadoSesion.REALIZADA, en(-1, 17, 0), "Excelente progreso en nomenclatura.");
+		crear("STU-087", 4L, "4", EstadoSesion.REALIZADA, en(-1, 9, 0), "Entregó avance del proyecto.");
+		crear("STU-191", 5L, "5", EstadoSesion.CONFIRMADA, en(1, 16, 0), "Primera revisión del ensayo.");
+		crear("STU-142", 1L, "1", EstadoSesion.CANCELADA, en(-2, 11, 0), "Reprogramar por examen universitario.");
 		crear("STU-263", 2L, null, EstadoSesion.SOLICITADA, en(2, 18, 0), "Foco: presentaciones y networking.");
 
 		log.info("Sesiones sembradas: {}", repository.count());

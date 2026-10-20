@@ -16,4 +16,17 @@ public interface SesionRepository extends JpaRepository<Sesion, Long> {
 		AND (:hasta IS NULL OR s.fechaSolicitud <= :hasta)
 		""")
 	List<Sesion> buscar(@Param("estado") EstadoSesion estado, @Param("desde") Instant desde, @Param("hasta") Instant hasta);
+
+	// Sesiones de ese tutor que ocupan su agenda (asignadas o en curso) y caen
+	// dentro de la ventana de tiempo dada, sin contar la sesión que se asigna.
+	@Query("""
+		SELECT COUNT(s) FROM Sesion s
+		WHERE s.tutorId = :tutorId
+		AND s.id <> :idSesion
+		AND s.estado IN :estados
+		AND s.fechaHora > :desde
+		AND s.fechaHora < :hasta
+		""")
+	long contarConflictos(@Param("tutorId") String tutorId, @Param("idSesion") Long idSesion,
+			@Param("estados") List<EstadoSesion> estados, @Param("desde") Instant desde, @Param("hasta") Instant hasta);
 }

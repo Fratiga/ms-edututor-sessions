@@ -1,5 +1,6 @@
 package cl.duoc.edututorsessions;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -13,6 +14,8 @@ import jakarta.validation.constraints.NotNull;
 @RestController
 @RequestMapping("/api/sessions")
 public class SesionController {
+
+	private static final Duration DURACION_SESION = Duration.ofHours(1);
 
 	private final SesionRepository repository;
 	private final SessionEventPublisher eventPublisher;
@@ -64,6 +67,7 @@ public class SesionController {
 		Sesion sesion = buscarOFallar(id);
 		EstadoSesion estadoAnterior = sesion.getEstado();
 		if (req.status() == EstadoSesion.ASIGNADA && req.tutorId() != null) {
+			validarAgendaDelTutor(sesion, req.tutorId());
 			sesion.asignarTutor(req.tutorId());
 		}
 		sesion.transitionTo(req.status());
@@ -71,6 +75,22 @@ public class SesionController {
 		commandPublisher.notificarCambioEstado(sesion);
 		eventPublisher.publicarCambioEstado(sesion, estadoAnterior);
 		return SesionResponse.from(sesion);
+	}
+
+	// Reserva del tutor: no puede tener dos sesiones asignadas o en curso que se
+	// crucen. No se conoce la duración real del servicio desde aquí, así que se
+	// asume una hora por sesión.
+	private void validarAgendaDelTutor(Sesion sesion, String tutorId) {
+		if (sesion.getFechaHora() == null) {
+			return;
+		}
+		Instant desde = sesion.getFechaHora().minus(DURACION_SESION);
+		Instant hasta = sesion.getFechaHora().plus(DURACION_SESION);
+		long conflictos = repository.contarConflictos(tutorId, sesion.getId(),
+			List.of(EstadoSesion.ASIGNADA, EstadoSesion.EN_CURSO), desde, hasta);
+		if (conflictos > 0) {
+			throw new TutorOcupadoException("El tutor ya tiene otra sesión asignada que se cruza con ese horario");
+		}
 	}
 
 	private Sesion buscarOFallar(Long id) {
