@@ -22,28 +22,25 @@ public class SessionCommandPublisher {
 
 	private static final Logger log = LoggerFactory.getLogger(SessionCommandPublisher.class);
 
-	private static final String EXCHANGE = "cmd.direct";
-	private static final String RUTA_EMAIL = "email.send";
-	private static final String RUTA_TICKET = "session.ticket";
-	private static final String RUTA_CERTIFICADO = "certificate.gen";
-
 	private final RabbitTemplate rabbitTemplate;
+	private final RabbitCommandProperties rabbit;
 
-	public SessionCommandPublisher(RabbitTemplate rabbitTemplate) {
+	public SessionCommandPublisher(RabbitTemplate rabbitTemplate, RabbitCommandProperties rabbit) {
 		this.rabbitTemplate = rabbitTemplate;
+		this.rabbit = rabbit;
 	}
 
 	public void notificarCreada(Sesion sesion) {
-		enviar(RUTA_EMAIL, "SESSION_REQUESTED", sesion, "Recibimos tu solicitud de sesión.");
+		enviar(rabbit.email().directKey(), "SESSION_REQUESTED", sesion, "Recibimos tu solicitud de sesión.");
 	}
 
 	public void notificarCambioEstado(Sesion sesion) {
 		switch (sesion.getEstado()) {
-			case CONFIRMADA -> enviar(RUTA_EMAIL, "SESSION_CONFIRMED", sesion, "Tu sesión fue confirmada.");
-			case ASIGNADA -> enviar(RUTA_TICKET, "SESSION_TICKET", sesion, "Se te asignó una sesión.");
-			case REALIZADA -> enviar(RUTA_CERTIFICADO, "SESSION_CERTIFICATE", sesion,
+			case CONFIRMADA -> enviar(rabbit.email().directKey(), "SESSION_CONFIRMED", sesion, "Tu sesión fue confirmada.");
+			case ASIGNADA -> enviar(rabbit.session().directKey(), "SESSION_TICKET", sesion, "Se te asignó una sesión.");
+			case REALIZADA -> enviar(rabbit.certificate().directKey(), "SESSION_CERTIFICATE", sesion,
 				"Sesión realizada: generar constancia.");
-			case CANCELADA -> enviar(RUTA_EMAIL, "SESSION_CANCELLED", sesion, "Tu sesión fue cancelada.");
+			case CANCELADA -> enviar(rabbit.email().directKey(), "SESSION_CANCELLED", sesion, "Tu sesión fue cancelada.");
 			default -> {
 			}
 		}
@@ -67,7 +64,7 @@ public class SessionCommandPublisher {
 			payload);
 
 		try {
-			rabbitTemplate.convertAndSend(EXCHANGE, rutaDeEnvio, comando);
+			rabbitTemplate.convertAndSend(rabbit.exchange().direct(), rutaDeEnvio, comando);
 		}
 		catch (RuntimeException e) {
 			log.warn("No se pudo publicar el comando {} ({}) en RabbitMQ: {}", tipo, rutaDeEnvio, e.getMessage());
