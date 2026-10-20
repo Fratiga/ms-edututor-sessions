@@ -62,6 +62,10 @@ public class Sesion {
 	// Regla de invariante: una sesión no puede pasar a EN_CURSO sin tutor
 	// asignado, y ninguna transición fuera del mapa de arriba es válida.
 	public void transitionTo(EstadoSesion destino) {
+		if (destino == EstadoSesion.ASIGNADA && this.tutorId == null) {
+			throw new IllegalStateTransitionException(
+				"No se puede asignar una sesión sin indicar el tutor: estado actual=" + this.estado);
+		}
 		if (destino == EstadoSesion.EN_CURSO && this.tutorId == null) {
 			throw new IllegalStateTransitionException(
 				"No se puede iniciar una sesión sin tutor asignado: estado actual=" + this.estado);
