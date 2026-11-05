@@ -18,7 +18,7 @@ class SessionEventPublisherTest {
 
 	@SuppressWarnings("unchecked")
 	private final KafkaTemplate<String, Object> kafka = mock(KafkaTemplate.class);
-	private final SessionEventPublisher publisher = new SessionEventPublisher(kafka);
+	private final SessionEventPublisher publisher = new SessionEventPublisher(kafka, "sessions.events");
 
 	@Test
 	void usaElIdDeLaSesionComoKey() {

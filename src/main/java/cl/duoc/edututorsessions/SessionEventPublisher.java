@@ -1,11 +1,11 @@
 package cl.duoc.edututorsessions;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
@@ -24,32 +24,31 @@ public class SessionEventPublisher {
 
 	private static final Logger log = LoggerFactory.getLogger(SessionEventPublisher.class);
 
-	private static final String TOPIC = "sessions.events";
-
 	private final KafkaTemplate<String, Object> kafkaTemplate;
+	private final String topic;
 
-	public SessionEventPublisher(KafkaTemplate<String, Object> kafkaTemplate) {
+	public SessionEventPublisher(KafkaTemplate<String, Object> kafkaTemplate,
+			@Value("${edututor.kafka.topic.events}") String topic) {
 		this.kafkaTemplate = kafkaTemplate;
+		this.topic = topic;
 	}
 
 	public void publicarCreada(Sesion sesion) {
-		publicar("SESSION_CREATED", sesion, null);
+		publicar(SessionEvent.CREATED, sesion, null);
 	}
 
 	public void publicarCambioEstado(Sesion sesion, EstadoSesion estadoAnterior) {
-		publicar("SESSION_STATE_CHANGED", sesion, estadoAnterior);
+		publicar(SessionEvent.STATE_CHANGED, sesion, estadoAnterior);
 	}
 
 	private void publicar(String type, Sesion sesion, EstadoSesion estadoAnterior) {
-		Map<String, Object> payload = new java.util.HashMap<>();
-		payload.put("sessionId", sesion.getId());
-		payload.put("estudianteId", sesion.getEstudianteId());
-		payload.put("servicioId", sesion.getServicioId());
-		payload.put("tutorId", sesion.getTutorId());
-		payload.put("estadoNuevo", sesion.getEstado().name());
-		if (estadoAnterior != null) {
-			payload.put("estadoAnterior", estadoAnterior.name());
-		}
+		SessionEventPayload payload = new SessionEventPayload(
+			sesion.getId(),
+			sesion.getEstudianteId(),
+			sesion.getServicioId(),
+			sesion.getTutorId(),
+			estadoAnterior == null ? null : estadoAnterior.name(),
+			sesion.getEstado().name());
 
 		SessionEvent evento = new SessionEvent(
 			type,
@@ -67,19 +66,19 @@ public class SessionEventPublisher {
 		// Si Kafka no responde, la sesión ya está guardada en Oracle: se deja la
 		// advertencia en el log y la petición del usuario no falla ni se cuelga.
 		try {
-			kafkaTemplate.send(TOPIC, String.valueOf(sesion.getId()), evento).whenComplete((resultado, error) -> {
+			kafkaTemplate.send(topic, String.valueOf(sesion.getId()), evento).whenComplete((resultado, error) -> {
 				if (error != null) {
-					log.warn("Evento {} de la sesión {} NO se publicó en {}: {}", type, sesion.getId(), TOPIC,
+					log.warn("Evento {} de la sesión {} NO se publicó en {}: {}", type, sesion.getId(), topic,
 						error.getMessage());
 				}
 				else {
-					log.info("Evento {} sessionId={} publicado en {} p{} o{}", type, sesion.getId(), TOPIC,
+					log.info("Evento {} sessionId={} publicado en {} p{} o{}", type, sesion.getId(), topic,
 						resultado.getRecordMetadata().partition(), resultado.getRecordMetadata().offset());
 				}
 			});
 		}
 		catch (RuntimeException e) {
-			log.warn("Evento {} de la sesión {} NO se publicó en {}: {}", type, sesion.getId(), TOPIC, e.getMessage());
+			log.warn("Evento {} de la sesión {} NO se publicó en {}: {}", type, sesion.getId(), topic, e.getMessage());
 		}
 	}
 }
