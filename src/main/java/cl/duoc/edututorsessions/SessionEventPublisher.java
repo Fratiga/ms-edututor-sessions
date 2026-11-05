@@ -4,6 +4,8 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +21,8 @@ import org.springframework.stereotype.Component;
 // (guardar en Oracle pero no publicar a Kafka, o viceversa) queda abierto.
 @Component
 public class SessionEventPublisher {
+
+	private static final Logger log = LoggerFactory.getLogger(SessionEventPublisher.class);
 
 	private static final String TOPIC = "sessions.events";
 
@@ -56,6 +60,26 @@ public class SessionEventPublisher {
 			payload);
 
 		// Partition key = sessionId (como String, para que Kafka lo hashee consistente).
-		kafkaTemplate.send(TOPIC, String.valueOf(sesion.getId()), evento);
+		// Al confirmar el broker se registra dónde quedó el evento (partición y
+		// offset): es el "comprobante" del envío y permite rastrearlo después en
+		// Kafka UI o en la pantalla de auditoría.
+		//
+		// Si Kafka no responde, la sesión ya está guardada en Oracle: se deja la
+		// advertencia en el log y la petición del usuario no falla ni se cuelga.
+		try {
+			kafkaTemplate.send(TOPIC, String.valueOf(sesion.getId()), evento).whenComplete((resultado, error) -> {
+				if (error != null) {
+					log.warn("Evento {} de la sesión {} NO se publicó en {}: {}", type, sesion.getId(), TOPIC,
+						error.getMessage());
+				}
+				else {
+					log.info("Evento {} sessionId={} publicado en {} p{} o{}", type, sesion.getId(), TOPIC,
+						resultado.getRecordMetadata().partition(), resultado.getRecordMetadata().offset());
+				}
+			});
+		}
+		catch (RuntimeException e) {
+			log.warn("Evento {} de la sesión {} NO se publicó en {}: {}", type, sesion.getId(), TOPIC, e.getMessage());
+		}
 	}
 }

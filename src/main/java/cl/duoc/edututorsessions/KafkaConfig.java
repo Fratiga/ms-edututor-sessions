@@ -32,7 +32,10 @@ public class KafkaConfig {
 		Map<String, Object> config = Map.of(
 			ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
 			ProducerConfig.ACKS_CONFIG, "all",
-			ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+			ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true,
+			// Sin esto, con el broker inaccesible send() espera 60 s por los
+			// metadatos antes de fallar, y esa espera la sufre quien hace la petición.
+			ProducerConfig.MAX_BLOCK_MS_CONFIG, 5000);
 
 		return new DefaultKafkaProducerFactory<>(config,
 			new org.apache.kafka.common.serialization.StringSerializer(),
